@@ -25,7 +25,7 @@ struct DropdownView: View {
     @Binding var config: DropdownConfig
     var body: some View {
         ScrollView {
-            VStack {
+            VStack(spacing: 0) {
                 ForEach(values, id: \.self) { item in
                     HStack {
                         Text(item)
@@ -40,7 +40,7 @@ struct DropdownView: View {
                     .contentShape(.rect)
                     .onTapGesture {
                         config.activeText = item
-                        withAnimation(.snappy) {
+                        withAnimation(.snappy(duration: 0.3)) {
                             config.showContent = false
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                 config.show = false
@@ -52,24 +52,33 @@ struct DropdownView: View {
         }
         .scrollIndicators(.hidden)
         .frame(width: config.anchor.width, height: 200)
-        .background(.background)
+        .background(.gray)
         .mask(alignment: .top) {
             Rectangle()
                 .frame(height: config.showContent ? 200 : 0, alignment: .top)
         }
         .clipShape(.rect(cornerRadius: config.cornerRadius))
-        .offset(x: config.anchor.minX, y: config.anchor.minY)
+        .offset(x: config.anchor.minX, y: config.anchor.minY + 50)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background {
             if config.showContent {
                 Rectangle()
-                    .fill(.ultraThickMaterial)
+                    .fill(.clear)
+                    .contentShape(.rect)
                     .reverseMask(.topLeading) {
                         RoundedRectangle(cornerRadius: config.cornerRadius)
                             .frame(height: config.showContent ? 200 : 0, alignment: .top)
                             .offset(x: config.anchor.minX, y: config.anchor.minY)
                         
                     }.transition(.opacity)
+                    .onTapGesture {
+                        withAnimation(.snappy(duration: 0.3)) {
+                            config.showContent = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                config.show = false
+                            }
+                        }
+                    }
             }
         }
         .ignoresSafeArea()
