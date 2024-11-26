@@ -9,7 +9,7 @@ import SwiftUI
 
 extension View {
     @ViewBuilder
-    func dropdownOverlay(_ config: Binding<DropdownConfig>, values: [String]) -> some View {
+    func dropdownOverlay<T: Selectable>(_ config: Binding<DropdownConfig<T>>, values: [T]) -> some View {
         self
             .overlay {
                 if config.wrappedValue.show {
@@ -18,44 +18,60 @@ extension View {
                 }
             }
     }
+    
+    @ViewBuilder
+    func reverseMask<Content: View>(_ algignment: Alignment, @ViewBuilder content: @escaping () -> Content) -> some View {
+        self
+            .mask {
+                Rectangle()
+                    .overlay(alignment: algignment) {
+                        content()
+                    }
+            }
+    }
 }
 
-struct DropdownView: View {
-    var values: [String]
-    @Binding var config: DropdownConfig
+struct DropdownConfig<T: Selectable> {
+    var active: T
+    var show: Bool = false
+    var showContent: Bool = false
+    var anchor: CGRect = .zero
+    var cornerRadius: CGFloat = 12
+}
+
+struct DropdownView<T: Selectable>: View {
+    var values: [T]
+    @Binding var config: DropdownConfig<T>
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                ForEach(values, id: \.self) { item in
-                    HStack {
-                        Text(item)
-                        
-                        Spacer(minLength: 0)
-                        
-                        Image(systemName: "chevron.down")
-                            
-                    }
-                    .padding(.horizontal, 15)
-                    .frame(height: config.anchor.height)
-                    .contentShape(.rect)
-                    .onTapGesture {
-                        config.activeText = item
-                        withAnimation(.snappy(duration: 0.3)) {
-                            config.showContent = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                config.show = false
-                            }
+        VStack(spacing: 0) {
+            ForEach(values, id: \.self) { item in
+                HStack {
+                    Text(item.title)
+                    
+                    Spacer(minLength: 0)
+                    
+                    Image(systemName: "chevron.down")
+                    
+                }
+                .padding(.horizontal, 15)
+                .frame(height: config.anchor.height)
+                .contentShape(.rect)
+                .onTapGesture {
+                    config.active = item
+                    withAnimation(.snappy(duration: 0.2)) {
+                        config.showContent = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            config.show = false
                         }
                     }
                 }
             }
         }
-        .scrollIndicators(.hidden)
-        .frame(width: config.anchor.width, height: 200)
+        .frame(width: config.anchor.width)
         .background(.gray)
         .mask(alignment: .top) {
             Rectangle()
-                .frame(height: config.showContent ? 200 : 0, alignment: .top)
+                .frame(height: config.showContent ? nil : 0, alignment: .top)
         }
         .clipShape(.rect(cornerRadius: config.cornerRadius))
         .offset(x: config.anchor.minX, y: config.anchor.minY + 50)
@@ -67,14 +83,14 @@ struct DropdownView: View {
                     .contentShape(.rect)
                     .reverseMask(.topLeading) {
                         RoundedRectangle(cornerRadius: config.cornerRadius)
-                            .frame(height: config.showContent ? 200 : 0, alignment: .top)
+                            .frame(height: config.showContent ? nil : 0, alignment: .top)
                             .offset(x: config.anchor.minX, y: config.anchor.minY)
                         
                     }.transition(.opacity)
                     .onTapGesture {
-                        withAnimation(.snappy(duration: 0.3)) {
+                        withAnimation(.snappy(duration: 0.2)) {
                             config.showContent = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                 config.show = false
                             }
                         }
@@ -85,30 +101,16 @@ struct DropdownView: View {
     }
 }
 
-extension View {
-    @ViewBuilder
-    func reverseMask<Content: View>(_ algignment: Alignment, @ViewBuilder content: @escaping () -> Content) -> some View {
-        self
-            .mask {
-                Rectangle()
-                    .overlay(alignment: algignment) {
-                        content()
-                    }
-            }
-    }
-        
-}
-
-struct SourceDropdownView: View {
-    @Binding var config: DropdownConfig
+struct SourceDropdownView<T: Selectable>: View {
+    @Binding var config: DropdownConfig<T>
     var body: some View {
         HStack {
-            Text(config.activeText)
+            Text(config.active.title)
             
             Spacer(minLength: 0)
             
             Image(systemName: "chevron.down")
-                
+            
         }
         .padding(.horizontal, 15)
         .padding(.vertical, 10)
@@ -116,7 +118,7 @@ struct SourceDropdownView: View {
         .contentShape(.rect(cornerRadius: config.cornerRadius))
         .onTapGesture {
             config.show = true
-            withAnimation(.snappy) {
+            withAnimation(.snappy(duration: 0.2)) {
                 config.showContent = true
             }
         }
@@ -125,33 +127,38 @@ struct SourceDropdownView: View {
         } action: { newValue in
             config.anchor = newValue
         }
-
+        
     }
-}
-
-struct DropdownConfig {
-    var activeText: String
-    var show: Bool = false
-    var showContent: Bool = false
-    var anchor: CGRect = .zero
-    var cornerRadius: CGFloat = 12
 }
 
 struct ContentView: View {
-    var values: [String] = ["Messages", "Archived", "Trash"]
-    @State var config = DropdownConfig(activeText: "Messages")
-    @State var config2 = DropdownConfig(activeText: "Messages")
+    @State var config = DropdownConfig(active: ClubKickPoint.mid)
     var body: some View {
         ScrollView {
             SourceDropdownView(config: $config)
-            SourceDropdownView(config: $config2)
         }
-        .dropdownOverlay($config, values: values)
-        .dropdownOverlay($config2, values: values)
+        .dropdownOverlay($config, values: ClubKickPoint.allCases)
     }
 }
 
+enum ClubKickPoint: String, CaseIterable {
+    case low = "Low"
+    case mid = "Mid"
+    case high = "High"
+}
 
-#Preview {
-    ContentView()
+extension ClubKickPoint: Selectable {
+    var allCase: [ClubKickPoint] {
+        return ClubKickPoint.allCases
+    }
+    
+    var title: String {
+        return self.rawValue
+    }
+    
+}
+
+protocol Selectable: Hashable {
+    var allCase: [Self] { get }
+    var title: String { get }
 }
